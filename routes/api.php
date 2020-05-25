@@ -21,6 +21,8 @@ Route::get("getMatchResources", "api\UserController@get_match_resources");
 Route::post('checkValidUserName','api\UserController@check_valid_username');
 Route::post("checkValidEmail", "api\UserController@check_valid_email");
 Route::post("updateUserSetting", "api\UserController@update_user_setting");
+Route::get("getMatches/{user_id}", "api\UserController@get_matches");
+
 Route::middleware('auth:api')->get('/user', function (Request $request) {
     return $request->user();
 });

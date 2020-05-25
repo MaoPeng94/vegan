@@ -18,8 +18,7 @@ use App\Friend420;
 use App\Havechildren;
 use App\Haveanimal;
 use App\Condition;
-use App\UserSetting;
-
+use Illuminate\Support\Facades\DB;
 
 class UserController extends BaseController 
 {
@@ -32,15 +31,17 @@ class UserController extends BaseController
      * 
      * @return \Illuminate\Http\Response 
      */ 
-    public function login(){ 
-        if(Auth::attempt(['email' => request('email'), 'password' => request('password')])){ 
-            $user = Auth::user(); 
-            $success['token'] =  $user->createToken('Vegan Token')-> accessToken; 
-            return response()->json(['success' => $success], $this-> successStatus); 
-        } 
-        else{ 
-            return response()->json(['error'=>'Unauthorised'], 401); 
-        } 
+    public function login(Request $request ){ 
+        $validator = Validator::make($request->all(), [
+            "phone"=>"string|required",
+        ]);
+        if ($validator->fails()) { 
+            return response()->json(['error'=>$validator->errors()], 401);            
+        }
+        $input = $validator->validated();
+        $user = User::where($input)->get();
+        if($user->count() > 0) { return response()->json(['user'=>$user[0]], $this->successStatus);}
+        else return response()->json(['error'=>"Not Registered!"], 401);
     }
     /** 
      * Register api 
@@ -167,14 +168,35 @@ class UserController extends BaseController
         $condition = json_decode($data['conditions']);
         foreach($condition as $key=>$one){ $array[] = $one->id; }
         $data['conditions'] = json_encode($array);
-
-        UserSetting::create($data);
-    
+        $user_id = $data['user_id'];
+        unset($data['user_id']);
+        $result = User::where("id",$user_id)->update($data);
+        if($result > 0) return response()->json(['success'=>"success"], $this->successStatus);
+        else return response()->json(["success"=>"fail"], 401);
     }
 
     public function details() 
     { 
         $user = Auth::user(); 
         return response()->json(['success' => $user], $this->successStatus); 
-    } 
+    }
+
+    public function get_matches(Request $request){
+
+        $user_id = $request->user_id;
+        $user = User::find($user_id);
+        $age_range = json_decode($user->ages);
+        $finding_identifies = $user->indentify;
+        $current_year = date("Y");
+        // For Search Age
+        $max_born_year = date("Y", strtotime($current_year." -".$age_range[0]." years"));
+        $min_born_year = date("Y", strtotime($current_year." -".$age_range[1]." years"));
+        // Get Matches
+        $query = User::where(DB::raw("Year(birthday)"), ">=", $min_born_year)->where(DB::raw("Year(birthday)"), "<=", $max_born_year)->get();
+
+
+
+        return response()->json(['count'=>$query->count(), "matches"=>$query],$this->successStatus);
+    }
+
 }
